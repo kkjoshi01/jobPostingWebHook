@@ -19,6 +19,43 @@ ALLOWED_TITLES = [
         "Mobile Engineer"
     ]
 
+def fmt_money(amount):
+    if amount is None:
+        return "N/A"
+    try: 
+        return f"£{int(float(amount)):,}"
+    except (ValueError, TypeError):
+        return str(amount)
+    
+def markdown_render(title, company, location, link, minSalary=None, maxSalary=None, postedDate=None, deadline=None):
+    header = f"**[{title}]({link})**" if link else f"**{title}**"
+    salary_line = ""
+    if minSalary is not None and maxSalary is not None:
+        salary_line = f"💷 **{fmt_money(minSalary)} - {fmt_money(maxSalary)}**"
+    else:
+        salary_line = f"💷 **{fmt_money(minSalary or maxSalary)}**"
+    
+    meta = []
+    if postedDate:
+        meta.append(f"📅 Posted: **{postedDate}**")
+    if deadline:
+        meta.append(f"⏳ Deadline: **{deadline}**")
+
+    meta_line = "   •  ".join(meta) if meta else ""
+
+    lines = [
+        header+"\n",
+        f"🏢 **{company}**  •   📍 **{location}**",
+    ]
+    if salary_line:
+        lines.append(salary_line)
+    if meta_line:
+        lines.append(meta_line)
+    lines.append("\n---")
+    lines.append("\n")
+
+    return "\n".join(lines)
+
 def post_job(job):
     title = job.get('jobTitle', 'No title provided')
     company = job.get('employerName', 'No company provided')
@@ -26,14 +63,11 @@ def post_job(job):
     link = job.get('jobUrl', 'No link provided')
     minSalary = job.get('minimumSalary', 'N/A')
     maxSalary = job.get('maximumSalary', 'N/A')
-    minSalary = str(minSalary) if minSalary != None else 'N/A'
-    maxSalary = str(maxSalary)  if maxSalary != None else 'N/A'
+    postedDate = job.get('date', 'N/A')
+    deadline = job.get('expirationDate', 'N/A')
 
-    message = f"## **{title}**\n"
-    message += f"- **{minSalary} - {maxSalary}**\n"
-    message += f"- Company: **{company}**\n"
-    message += f"- Location: **{location}**\n"
-    message += f"- __[Job Link]({link})__\n"
+    message = markdown_render(title, company, location, link, minSalary, maxSalary, postedDate, deadline)
+
     r = requests.post(HOOK_URL, json={"content": message})
     r.raise_for_status()
 
@@ -42,7 +76,7 @@ def fetch_jobs(numberofJobs : int):
         "keywords": "(\"Software Engineer\" OR \"Backend Engineer\" OR \"Frontend Engineer\" OR \"Machine Learning Engineer\" OR \"Mobile Engineer\") AND (\"Graduate\" OR \"Junior\")",
         "resultsToTake": numberofJobs,
         "locationName": "London",
-        "distanceFromLocation": 200,
+        "distanceFromLocation": 350,
         "permanent": True,
         "fullTime": True,
         "graduate": True
@@ -62,8 +96,9 @@ def passed_deadline(job):
     return False
 
 def main():
-    jobs = fetch_jobs(10)
+    jobs = fetch_jobs(1)
     for job in jobs:
+        print(job)
         job_title = str(job.get('jobTitle', ''))
         print(job_title)
         if passed_deadline(job):
