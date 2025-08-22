@@ -23,6 +23,6 @@ jobs:
       - name: Run job poster
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
-          ADZUNA_KEY: ${{ secrets.ADZUNA_KEY }}
+          REED_API_KEY: ${{ secrets.REED_API_KEY }}
+        
         run: python poster.py
