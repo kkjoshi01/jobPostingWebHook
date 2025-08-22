@@ -26,8 +26,8 @@ def post_job(job):
     link = job.get('jobUrl', 'No link provided')
     minSalary = job.get('minimumSalary', 'N/A')
     maxSalary = job.get('maximumSalary', 'N/A')
-    minSalary = str("£" + minSalary) if minSalary != None else 'N/A'
-    maxSalary = str("£" + maxSalary)  if maxSalary != None else 'N/A'
+    minSalary = str(minSalary) if minSalary != None else 'N/A'
+    maxSalary = str(maxSalary)  if maxSalary != None else 'N/A'
 
     message = f"## **{title}**\n"
     message += f"- **{minSalary} - {maxSalary}**\n"
@@ -64,13 +64,14 @@ def passed_deadline(job):
 def main():
     jobs = fetch_jobs(10)
     for job in jobs:
-        job_title = job.get('jobTitle', '')
+        job_title = str(job.get('jobTitle', ''))
+        print(job_title)
         if passed_deadline(job):
-            print(f"Job {job.get('jobTitle')} has passed its deadline.")
-            job = fetch_jobs(1)[0]  # Fetch a new job to replace the expired one
+            continue
 
-        if str(job_title).find("Senior") or str(job_title).find("Lead"):
-            job = fetch_jobs(1)[0]  # Fetch a new job to replace the expired one
+        if job_title.find("Senior") != -1 and job_title.find("Lead") != -1:
+            print("SSkipped")
+            continue
         
         try:
             post_job(job)
