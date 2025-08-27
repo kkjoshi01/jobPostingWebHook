@@ -2,7 +2,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime
-import json, hashlib, pathlib
+import json, hashlib
 from state import load_seen, save_seen
 
 load_dotenv()
