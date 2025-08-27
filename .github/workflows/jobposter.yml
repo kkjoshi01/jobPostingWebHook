@@ -1,28 +1,43 @@
+# .github/workflows/jobposter.yml
 name: Job Poster
 
 on:
   schedule:
-    - cron: "0 * * * *"   # every hour (UTC)
-  workflow_dispatch:      # lets you trigger it manually too
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: job-poster
+  cancel-in-progress: true
 
 jobs:
-  run-script:
+  post:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install deps
         run: pip install requests python-dotenv
 
-      - name: Run job poster
+      - name: Run poster
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           REED_API_KEY: ${{ secrets.REED_API_KEY }}
-        
         run: python poster.py
+
+      - name: Persist seen state
+        run: |
+          if [ -f .state/seen.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .state/seen.json
+            git diff --cached --quiet || git commit -m "chore: update seen state [skip ci]"
+            git push
+          fi

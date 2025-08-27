@@ -1,8 +1,9 @@
 import requests
 import os
 from dotenv import load_dotenv
-import dateutil
 from datetime import datetime
+import json, hashlib, pathlib
+from state import load_seen, save_seen
 
 load_dotenv()
 
@@ -18,6 +19,19 @@ ALLOWED_TITLES = [
         "Machine Learning Engineer",
         "Mobile Engineer"
     ]
+
+
+def stable_id(job : dict) -> str:
+    jobid = job.get("jobId", "")
+    if jobid:
+        return f"reed:{jobid}"
+    base = "|".join([
+        job.get("jobUrl", ""),
+        job.get("jobTitle", ""),
+        job.get("employerName", ""),
+        job.get("locationName", ""),
+    ]).lower()
+    return "reedhash:" + hashlib.sha256(base.encode()).hexdigest()
 
 def fmt_money(amount):
     if amount is None:
@@ -51,8 +65,7 @@ def markdown_render(title, company, location, link, minSalary=None, maxSalary=No
         lines.append(salary_line)
     if meta_line:
         lines.append(meta_line)
-    lines.append("\n---")
-    lines.append("\n")
+    lines.append("\n---\n")
 
     return "\n".join(lines)
 
@@ -61,8 +74,8 @@ def post_job(job):
     company = job.get('employerName', 'No company provided')
     location = job.get('locationName', 'No location provided')
     link = job.get('jobUrl', 'No link provided')
-    minSalary = job.get('minimumSalary', 'N/A')
-    maxSalary = job.get('maximumSalary', 'N/A')
+    minSalary = job.get('minimumSalary')
+    maxSalary = job.get('maximumSalary')
     postedDate = job.get('date', 'N/A')
     deadline = job.get('expirationDate', 'N/A')
 
@@ -77,13 +90,11 @@ def fetch_jobs(numberofJobs : int):
         "resultsToTake": numberofJobs,
         "locationName": "London",
         "distanceFromLocation": 350,
-        "permanent": True,
-        "fullTime": True,
-        "graduate": True
+        "permanent": "true",
+        "fullTime": "true",
+        "graduate": "true"
     }
-    headers = {
-        "Accept": "application/json",
-    }
+    headers = {"Accept": "application/json"}
 
     r = requests.get(REED_URL, params=params, headers=headers, timeout=30, auth=(REED_API_KEY, ''))
     r.raise_for_status()
@@ -96,22 +107,34 @@ def passed_deadline(job):
     return False
 
 def main():
-    jobs = fetch_jobs(1)
+    jobs = fetch_jobs(10)
+    seen_global = load_seen()
+    seen_in_run = set()
+    newly_posted = set()
     for job in jobs:
-        print(job)
+        sid = stable_id(job)
+        if sid in seen_global or sid in seen_in_run:
+            continue
+        seen_in_run.add(sid)
+
         job_title = str(job.get('jobTitle', ''))
-        print(job_title)
+        
         if passed_deadline(job):
             continue
 
-        if job_title.find("Senior") != -1 and job_title.find("Lead") != -1:
-            print("SSkipped")
+        if job_title.find("Senior") != -1 or job_title.find("Lead") != -1:
             continue
         
         try:
             post_job(job)
+            newly_posted.add(sid)
         except Exception as e:
             print(f"Error posting job {job.get('jobTitle')}: {e}")
+
+    if newly_posted:
+        seen_global |= newly_posted
+        save_seen(seen_global)
+
 
 if __name__ == "__main__":
     main()
