@@ -26,7 +26,6 @@ IGNORE_KEYWORDS = [
     "Manager"
 ]
 
-
 def stable_id(job : dict) -> str:
     jobid = job.get("jobId", "")
     if jobid:
