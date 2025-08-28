@@ -47,33 +47,36 @@ def fmt_money(amount):
     except (ValueError, TypeError):
         return str(amount)
     
-def markdown_render(title, company, location, link, minSalary=None, maxSalary=None, postedDate=None, deadline=None):
-    header = f"**[{title}]({link})**" if link else f"**{title}**"
-    salary_line = ""
-    if minSalary is not None and maxSalary is not None:
-        salary_line = f"💷 **{fmt_money(minSalary)} - {fmt_money(maxSalary)}**"
-    else:
-        salary_line = f"💷 **{fmt_money(minSalary or maxSalary)}**"
-    
-    meta = []
+def build_embed(title, company, location, link, minSalary=None, maxSalary=None, postedDate=None, deadline=None):
+    lo, hi = fmt_money(minSalary), fmt_money(maxSalary)
+    salary = None
+    if lo and hi:
+        salary = f"💷 {lo} – {hi}"
+    elif lo or hi:
+        salary = f"💷 {lo or hi}"
+
+    fields = []
+    if company:
+        fields.append({"name": "🏢 Company", "value": company, "inline": True})
+    if location:
+        fields.append({"name": "📍 Location", "value": location, "inline": True})
+    if salary:
+        fields.append({"name": "💷 Salary", "value": salary, "inline": False})
     if postedDate:
-        meta.append(f"📅 Posted: **{postedDate}**")
+        fields.append({"name": "📅 Posted", "value": str(postedDate), "inline": True})
     if deadline:
-        meta.append(f"⏳ Deadline: **{deadline}**")
+        fields.append({"name": "⏳ Deadline", "value": str(deadline), "inline": True})
 
-    meta_line = "   •  ".join(meta) if meta else ""
+    embed = {
+        "title": title,
+        "url": link,
+        "color": 0x2ECC71,   # green accent
+        "fields": fields,
+        "footer": {"text": "Job feed via Reed API"},
 
-    lines = [
-        header+"\n",
-        f"🏢 **{company}**  •   📍 **{location}**",
-    ]
-    if salary_line:
-        lines.append(salary_line)
-    if meta_line:
-        lines.append(meta_line)
-    lines.append("\n---\n")
+    }
+    return embed
 
-    return "\n".join(lines)
 
 def post_job(job):
     title = job.get('jobTitle', 'No title provided')
@@ -85,10 +88,14 @@ def post_job(job):
     postedDate = job.get('date', 'N/A')
     deadline = job.get('expirationDate', 'N/A')
 
-    message = markdown_render(title, company, location, link, minSalary, maxSalary, postedDate, deadline)
+    embed = build_embed(title, company, location, link, minSalary, maxSalary, postedDate, deadline)
+    print(f"Posting job: {title} at {company}")
 
-    r = requests.post(HOOK_URL, json={"content": message})
-    r.raise_for_status()
+    resp = requests.post(
+        HOOK_URL,
+        json={"embeds": [embed]}
+    )
+    resp.raise_for_status()
 
 def fetch_jobs(limit: int = 100, page_size: int = 25):
     headers = {"Accept": "application/json"}
@@ -121,7 +128,9 @@ def passed_deadline(job):
 
 def main():
     jobs = fetch_jobs(limit=100)
+    print(f"Fetched {len(jobs)} jobs")
     seen_global = load_seen()
+    print(f"Loaded {len(seen_global)} previously seen jobs")
     seen_in_run = set()
     newly_posted = set()
     for job in jobs:
@@ -135,10 +144,12 @@ def main():
         if passed_deadline(job):
             continue
 
-        if any(keyword in job_title for keyword in IGNORE_KEYWORDS):
+        if any(keyword.lower() in job_title.lower() for keyword in IGNORE_KEYWORDS):
+            print(f"Ignoring job: {job_title}")
             continue
         
         try:
+            print(f"Posting job: {job_title}")
             post_job(job)
             newly_posted.add(sid)
         except Exception as e:
