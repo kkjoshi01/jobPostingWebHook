@@ -84,21 +84,28 @@ def post_job(job):
     r = requests.post(HOOK_URL, json={"content": message})
     r.raise_for_status()
 
-def fetch_jobs(numberofJobs : int):
-    params = {
-        "keywords": "(\"Software Engineer\" OR \"Backend Engineer\" OR \"Frontend Engineer\" OR \"Machine Learning Engineer\" OR \"Mobile Engineer\") AND (\"Graduate\" OR \"Junior\")",
-        "resultsToTake": numberofJobs,
-        "locationName": "London",
-        "distanceFromLocation": 350,
-        "permanent": "true",
-        "fullTime": "true",
-        "graduate": "true"
-    }
+def fetch_jobs(limit: int = 100, page_size: int = 25):
     headers = {"Accept": "application/json"}
+    all_results = []
+    for skip in range(0, limit, page_size):
+        params = {
+            "keywords": "(\"Software Engineer\" OR \"Backend Engineer\" OR \"Frontend Engineer\" OR \"Machine Learning Engineer\" OR \"Mobile Engineer\") AND (\"Graduate\" OR \"Junior\")",
+            "resultsToTake": page_size,
+            "resultsToSkip": skip,
+            "locationName": "London",
+            "distanceFromLocation": 350,
+            "permanent": "true",
+            "fullTime": "true",
+            "graduate": "true"
+        }
+        r = requests.get(REED_URL, params=params, headers=headers, timeout=30, auth=(REED_API_KEY, ''))
+        r.raise_for_status()
+        results = r.json().get('results', [])
+        if not results:
+            break
+        all_results.extend(results)
+    return all_results
 
-    r = requests.get(REED_URL, params=params, headers=headers, timeout=30, auth=(REED_API_KEY, ''))
-    r.raise_for_status()
-    return r.json().get('results', [])
 
 def passed_deadline(job):
     deadline = datetime.strptime(job.get('expirationDate'), "%d/%m/%Y") if job.get('expirationDate') else None
@@ -107,7 +114,7 @@ def passed_deadline(job):
     return False
 
 def main():
-    jobs = fetch_jobs(10)
+    jobs = fetch_jobs(limit=100)
     seen_global = load_seen()
     seen_in_run = set()
     newly_posted = set()
