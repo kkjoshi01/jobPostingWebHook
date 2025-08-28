@@ -12,13 +12,19 @@ REED_API_KEY = os.environ["REED_API_KEY"]
 REED_URL = "https://www.reed.co.uk/api/1.0/search"
 
 ALLOWED_TITLES = [
-        "Software Engineer",
-        "Backend Engineer",
-        "Frontend Engineer",
-        "Full Stack Engineer",
-        "Machine Learning Engineer",
-        "Mobile Engineer"
-    ]
+    "Software Engineer",
+    "Backend Engineer",
+    "Frontend Engineer",
+    "Full Stack Engineer",
+    "Machine Learning Engineer",
+    "Mobile Engineer"
+]
+
+IGNORE_KEYWORDS = [
+    "Lead",
+    "Senior",
+    "Manager"
+]
 
 
 def stable_id(job : dict) -> str:
@@ -129,7 +135,7 @@ def main():
         if passed_deadline(job):
             continue
 
-        if job_title.find("Senior") != -1 or job_title.find("Lead") != -1:
+        if any(keyword in job_title for keyword in IGNORE_KEYWORDS):
             continue
         
         try:
