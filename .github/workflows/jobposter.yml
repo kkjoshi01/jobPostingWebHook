@@ -2,11 +2,11 @@ name: Job Poster
 
 on:
   schedule:
-    - cron: "0 * * * *"   # every hour UTC
+    - cron: "0 * * * *"
   workflow_dispatch: {}
 
 permissions:
-  contents: write          # needed to push .state/seen.json
+  contents: write
 
 concurrency:
   group: job-poster
@@ -14,7 +14,13 @@ concurrency:
 
 jobs:
   post:
+    environment: prod
     runs-on: ubuntu-latest
+
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      REED_API_KEY: ${{ secrets.REED_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -28,29 +34,4 @@ jobs:
       - name: Env sanity check
         run: |
           python - <<'PY'
-          import os, sys
-          print("Python:", sys.version)
-          print("HAS DISCORD_WEBHOOK_URL:", bool(os.getenv("DISCORD_WEBHOOK_URL")))
-          print("HAS REED_API_KEY:", bool(os.getenv("REED_API_KEY")))
-          PY
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          REED_API_KEY: ${{ secrets.REED_API_KEY }}
-
-      - name: Run poster.py
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          REED_API_KEY: ${{ secrets.REED_API_KEY }}
-        run: python poster.py
-
-      - name: Persist seen state
-        run: |
-          if [ -f .state/seen.json ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .state/seen.json
-            git diff --cached --quiet || git commit -m "chore: update seen state [skip ci]"
-            git push
-          else
-            echo "No state file to persist (first run with no posts?)"
-          fi
+          import os,
