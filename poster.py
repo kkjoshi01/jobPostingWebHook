@@ -50,7 +50,7 @@ def build_embed(title, company, location, link, minSalary=None, maxSalary=None, 
     lo, hi = fmt_money(minSalary), fmt_money(maxSalary)
     salary = None
     if lo and hi:
-        salary = f"💷 {lo} – {hi}"
+        salary = f"💷 {lo} - {hi}"
     elif lo or hi:
         salary = f"💷 {lo or hi}"
 
